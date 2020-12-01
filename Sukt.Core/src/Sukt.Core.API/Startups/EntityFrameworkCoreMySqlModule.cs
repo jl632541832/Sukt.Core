@@ -1,16 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sukt.Core.MultiTenancy;
 using Sukt.Core.Shared;
 using Sukt.Core.Shared.Entity;
 using Sukt.Core.Shared.Events;
 using Sukt.Core.Shared.Extensions;
 using Sukt.Core.Shared.Modules;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Sukt.Core.API.Startups
 {
@@ -29,6 +27,7 @@ namespace Sukt.Core.API.Startups
             services.AddScoped(typeof(IEFCoreRepository<,>), typeof(BaseRepository<,>));
             return services;
         }
+
         /// <summary>
         /// 添加工作单元
         /// </summary>
@@ -38,6 +37,7 @@ namespace Sukt.Core.API.Startups
         {
             return services.AddScoped<IUnitOfWork, UnitOfWork<DefaultDbContext>>();
         }
+
         /// <summary>
         /// 重写方法
         /// </summary>
@@ -54,8 +54,11 @@ namespace Sukt.Core.API.Startups
                 throw new Exception("未找到存放数据库链接的文件");
             }
             var mysqlconn = File.ReadAllText(dbcontext).Trim(); ;
-            services.AddDbContext<DefaultDbContext>(option => {
-                option.UseMySql(mysqlconn, assembly => { assembly.MigrationsAssembly("Sukt.Core.Domain.Models"); });
+            services.AddDbContext<DefaultDbContext>((serviceProvider, options) =>
+            {
+                var resolver = serviceProvider.GetRequiredService<ISuktConnectionStringResolver>();
+                var ss = resolver.Resolve();
+                options.UseMySql(mysqlconn, assembly => { assembly.MigrationsAssembly("Sukt.Core.Domain.Models"); });
             });
             return services;
         }

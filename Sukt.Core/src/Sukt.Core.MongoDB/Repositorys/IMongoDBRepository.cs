@@ -1,7 +1,6 @@
-﻿using MongoDB.Driver.Linq;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MongoDB.Driver;
+using MongoDB.Driver.Linq;
+using Sukt.Core.Shared.OperationResult;
 using System.Threading.Tasks;
 
 namespace Sukt.Core.MongoDB.Repositorys
@@ -18,15 +17,43 @@ namespace Sukt.Core.MongoDB.Repositorys
         /// <param name="T"></param>
         /// <returns></returns>
         Task InsertAsync(TData entity);
+
         /// <summary>
         /// 数组创建
         /// </summary>
         /// <param name="entitys"></param>
         /// <returns></returns>
-        Task InsertAsync(List<TData> entitys);
+        Task InsertAsync(TData[] entitys);
+
         /// <summary>
         /// 查询数据
         /// </summary>
         IMongoQueryable<TData> Entities { get; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        IMongoCollection<TData> Collection { get; }
+
+        /// <summary>
+        /// 根据键查询
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        Task<TData> FindByIdAsync(Tkey key);
+
+        /// <summary>
+        /// 更新
+        /// </summary>
+        /// <returns></returns>
+
+        Task<OperationResponse> UpdateAsync(Tkey key, UpdateDefinition<TData> update);
+
+        /// <summary>
+        /// 删除
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        Task<OperationResponse> DeleteAsync(Tkey key);
     }
 }

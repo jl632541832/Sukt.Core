@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sukt.Core.Shared.Events.EventBus
@@ -15,6 +12,6 @@ namespace Sukt.Core.Shared.Events.EventBus
         /// <param name="event"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default) where T : EventBase;
+        Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default) where T : IEventBase;
     }
 }

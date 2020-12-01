@@ -1,8 +1,5 @@
 ﻿using Sukt.Core.Shared.AjaxResult;
 using Sukt.Core.Shared.Extensions.ResultExtensions;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Sukt.Core.Shared.Extensions
 {
@@ -17,7 +14,7 @@ namespace Sukt.Core.Shared.Extensions
         /// <typeparam name="T"></typeparam>
         /// <param name="pageResult"></param>
         /// <returns></returns>
-        public static PageList<T> PageList<T>(this PageResult<T> pageResult)
+        public static PageList<T> PageList<T>(this IPageResult<T> pageResult)
         {
             var result = pageResult;
             return new PageList<T>() { Data = result.Data, Message = result.Message, Total = result.Total, Success = result.Success };

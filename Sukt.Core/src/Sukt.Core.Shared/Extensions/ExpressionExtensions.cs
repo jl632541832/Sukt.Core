@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
+using System.Reflection;
 
 namespace Sukt.Core.Shared.Extensions
 {
@@ -110,8 +111,10 @@ namespace Sukt.Core.Shared.Extensions
                     }
                 case ExpressionType.Parameter:
                     return parameter;
+
                 case ExpressionType.Constant:
                     return expression;
+
                 case ExpressionType.TypeIs:
                     {
                         var typeis = expression as TypeBinaryExpression;
@@ -122,6 +125,7 @@ namespace Sukt.Core.Shared.Extensions
                     throw new Exception($"Unhandled expression type:{expression.NodeType}");
             }
         }
+
         /// <summary>
         /// 表达树类型转换
         /// </summary>
@@ -138,6 +142,7 @@ namespace Sukt.Core.Shared.Extensions
             var x = Parser(p, expression);
             return Expression.Lambda<Func<TToProperty, bool>>(x, p);
         }
+
         /// <summary>
         /// 得到表达树对应属性的名字
         /// </summary>
@@ -155,7 +160,6 @@ namespace Sukt.Core.Shared.Extensions
                 var operand = unaryExpression.Operand;
                 var memberExpression = operand as MemberExpression;
                 name = memberExpression?.Member.Name;
-
             }
             else if (body is MemberExpression)
             {
@@ -171,6 +175,7 @@ namespace Sukt.Core.Shared.Extensions
             }
             return name;
         }
+
         ///// <summary>
         ///// And操作
         ///// </summary>
@@ -186,9 +191,16 @@ namespace Sukt.Core.Shared.Extensions
             }
 
             var exp = ReplaceParameter(expr1, expr2, out ParameterExpression newParameter);
+
+            if (exp.left is ConstantExpression constant && constant.Value.IsTrue())
+            {
+
+                return expr2;
+
+            }
+
             var body = Expression.And(exp.left, exp.right);
             return Expression.Lambda<Func<T, bool>>(body, newParameter);
-
         }
 
         /// <summary>
@@ -212,6 +224,7 @@ namespace Sukt.Core.Shared.Extensions
 
             return expr1.And(expr2);
         }
+
         /// <summary>
         /// Or操作
         /// </summary>
@@ -252,6 +265,7 @@ namespace Sukt.Core.Shared.Extensions
 
             return expr1.Or(expr2);
         }
+
         /// <summary>
         /// 替换参数
         /// </summary>
@@ -263,7 +277,6 @@ namespace Sukt.Core.Shared.Extensions
         public static (Expression left, Expression right) ReplaceParameter<T>(this Expression<Func<T, bool>> expr1,
             Expression<Func<T, bool>> expr2, out ParameterExpression newParameter)
         {
-
             newParameter = Expression.Parameter(typeof(T), "c");
             NewExpressionVisitor visitor = new NewExpressionVisitor(newParameter);
 
@@ -271,6 +284,51 @@ namespace Sukt.Core.Shared.Extensions
             var right = visitor.Replace(expr2.Body);
             return (left, right);
         }
+
+        /// <summary>
+        /// In操作
+        /// </summary>
+        /// <param name="member"></param>
+        /// <param name="constant"></param>
+        /// <returns></returns>
+        public static Expression In(this MemberExpression member, Expression constant)
+        {
+            var constantExpression = constant as ConstantExpression;
+            if (constantExpression is null)
+            {
+                throw new ArgumentException("“In”操作值只支持ConstantExpression类型");
+            }
+
+            if (!(constantExpression.Value is IList) || !constantExpression.Value.GetType().IsGenericType)
+            {
+                throw new ArgumentException("“In”操作只支持列表作为参数。");
+            }
+
+
+            var type = constantExpression.Value.GetType();
+            var inInfo = type.GetMethod("Contains", new[] { type.GetGenericArguments()[0] });
+            return GetExpressionHandlingNullables(member, constantExpression, type, inInfo) ?? Expression.Call(constantExpression, inInfo, member);
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="member"></param>
+        /// <param name="constant1"></param>
+        /// <param name="type"></param>
+        /// <param name="inInfo"></param>
+        /// <returns></returns>
+        private static Expression GetExpressionHandlingNullables(MemberExpression member, ConstantExpression constant1, Type type, MethodInfo inInfo)
+        {
+            var listUnderlyingType = Nullable.GetUnderlyingType(type.GetGenericArguments()[0]);
+            var memberUnderlingType = Nullable.GetUnderlyingType(member.Type);
+            if (listUnderlyingType != null && memberUnderlingType == null)
+            {
+                return Expression.Call(constant1, inInfo, member.Expression);
+            }
+
+            return null;
+        }
+
         public static Dictionary<string, object> ExpressionToDictValues<T>(this Expression<Func<T, T>> expression)
         {
             var dictValues = new Dictionary<string, object>();
@@ -281,7 +339,6 @@ namespace Sukt.Core.Shared.Extensions
                 expressionBody = ((UnaryExpression)expressionBody).Operand;
             }
             var entityType = typeof(T);
-
 
             var memberInitExpression = expressionBody as MemberInitExpression;
             if (memberInitExpression == null)
@@ -322,22 +379,18 @@ namespace Sukt.Core.Shared.Extensions
                     if (constantExpression != null)
                     {
                         value = constantExpression.Value;
-
                     }
                     else
                     {
                         //
                         var lambda = Expression.Lambda(memberExpression, null);
                         value = lambda.Compile().DynamicInvoke();
-
-
                     }
 
                     dictValues.Add(propertyName, value);
                 }
                 else
                 {
-
                     memberExpression = memberExpression.Visit((MemberExpression m) =>
                     {
                         if (m.Expression.NodeType == ExpressionType.Constant)
@@ -351,28 +404,28 @@ namespace Sukt.Core.Shared.Extensions
                         return m;
                     });
 
-
-
-
                     dictValues.Add(propertyName, memberExpression);
                 }
             }
 
-
             return dictValues;
         }
     }
+
     public class NewExpressionVisitor : ExpressionVisitor
     {
         public ParameterExpression NewParameter { get; private set; }
+
         public NewExpressionVisitor(ParameterExpression param)
         {
             this.NewParameter = param;
         }
+
         public Expression Replace(Expression exp)
         {
             return this.Visit(exp);
         }
+
         protected override Expression VisitParameter(ParameterExpression node)
         {
             return this.NewParameter;

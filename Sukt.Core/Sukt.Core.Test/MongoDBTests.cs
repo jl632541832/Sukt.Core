@@ -4,14 +4,15 @@ using MongoDB.Driver.Linq;
 using Sukt.Core.MongoDB;
 using Sukt.Core.MongoDB.DbContexts;
 using Sukt.Core.MongoDB.Repositorys;
+using Sukt.Core.Shared;
 using Sukt.Core.Shared.Audit;
 using Sukt.Core.Shared.Entity;
+using Sukt.Core.Shared.ExpressionUtil;
+using Sukt.Core.Shared.Extensions.OrderExtensions;
+using Sukt.Core.Shared.Filter;
 using Sukt.Core.TestBase;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -20,10 +21,12 @@ namespace Sukt.Core.Test
     public class MongoDBTests : IntegratedTest<MongoDBModelule>
     {
         private readonly IMongoDBRepository<TestDB, Guid> _mongoDBRepository = null;
+
         public MongoDBTests()
         {
             _mongoDBRepository = ServiceProvider.GetService<IMongoDBRepository<TestDB, Guid>>();
         }
+
         [Fact]
         public async Task Insert_Test()
         {
@@ -36,6 +39,52 @@ namespace Sukt.Core.Test
             Assert.True(entite.Name == "1as32d1as3d1as32d1");
         }
 
+        [Fact]
+        public async Task GetPageAsync_Test()
+        {
+            FilterCondition condition = new FilterCondition();
+            QueryFilter filter = new QueryFilter();
+            //condition.Field = "Name";
+            //condition.Value = "大黄瓜18CM";
+            //filter.Conditions.Add(condition);
+            var exp = FilterHelp.GetExpression<TestDB>(filter);
+            OrderCondition[] orderConditions = new OrderCondition[] {
+                new OrderCondition("Name",Sukt.Core.Shared.Enums.SortDirectionEnum.Descending),
+                new OrderCondition("CreatedTime")
+               };
+            PagedRequest pagedRequest = new PagedRequest();
+            pagedRequest.OrderConditions = orderConditions;
+            var page = await _mongoDBRepository.Collection.ToPageAsync(exp, pagedRequest);
+
+            Assert.True(page.Data.Count == 10);
+            var page1 = await _mongoDBRepository.Collection.ToPageAsync(exp, pagedRequest, o => new TestDto
+            {
+                Id = o.Id,
+                Name = o.Name
+            });
+            Assert.True(page1.Data.Count == 10);
+        }
+    }
+
+    public class PagedRequest : IPagedRequest
+    {
+        public PagedRequest()
+        {
+            PageIndex = 1;
+            PageRow = 10;
+            OrderConditions = new OrderCondition[] { };
+        }
+
+        public int PageIndex { get; set; }
+        public int PageRow { get; set; }
+        public OrderCondition[] OrderConditions { get; set; }
+    }
+
+    public class TestDto
+    {
+        public Guid Id { get; set; }
+
+        public string Name { get; set; }
     }
 
     public class MongoDBModelule : MongoDBModuleBase
@@ -51,7 +100,7 @@ namespace Sukt.Core.Test
             {
                 throw new Exception("未找到存放数据库链接的文件");
             }
-            var connection =  File.ReadAllText(dbcontext).Trim();
+            var connection = File.ReadAllText(dbcontext).Trim();
 
             services.AddMongoDbContext<DefaultMongoDbContext>(options =>
             {
@@ -59,6 +108,7 @@ namespace Sukt.Core.Test
             });
         }
     }
+
     [MongoDBTable("TestDB")]//
     public class TestDB : EntityBase<Guid>, IFullAuditedEntity<Guid>
     {
@@ -66,6 +116,7 @@ namespace Sukt.Core.Test
         {
             Id = Guid.NewGuid();
         }
+
         public string Name { get; set; }
         public Guid? CreatedId { get; set; }
         public DateTime CreatedAt { get; set; }

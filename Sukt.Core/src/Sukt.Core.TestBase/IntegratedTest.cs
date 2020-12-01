@@ -2,8 +2,6 @@
 using Sukt.Core.Shared.Extensions;
 using Sukt.Core.Shared.Modules;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Sukt.Core.TestBase
 {
@@ -11,23 +9,24 @@ namespace Sukt.Core.TestBase
     {
         protected IModuleApplication Application { get; }
 
-
         protected IServiceProvider RootServiceProvider { get; }
 
         protected IServiceScope TestServiceScope { get; }
 
         protected override IServiceProvider ServiceProvider => Application.ServiceProvider;
+
         protected IntegratedTest()
         {
             var services = CreateServiceCollection();
             BeforeAddApplication(services);
             var application = services.AddApplication<TStartupModule>();
-            Application = services.GetService<IModuleApplication>();
+            Application = services.GetBuildService<IModuleApplication>();
             AfterAddApplication(services);
             RootServiceProvider = CreateServiceProvider(services);
             TestServiceScope = RootServiceProvider.CreateScope();
             ((StartupModuleRunner)Application).Initialize(TestServiceScope.ServiceProvider);
         }
+
         protected virtual IServiceCollection CreateServiceCollection()
         {
             return new ServiceCollection();
@@ -35,13 +34,11 @@ namespace Sukt.Core.TestBase
 
         protected virtual void BeforeAddApplication(IServiceCollection services)
         {
-
         }
+
         protected virtual void AfterAddApplication(IServiceCollection services)
         {
-
         }
-
 
         protected virtual IServiceProvider CreateServiceProvider(IServiceCollection services)
         {
