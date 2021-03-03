@@ -5,44 +5,30 @@ using Microsoft.IdentityModel.Tokens;
 using Sukt.Core.Domain.Models;
 using Sukt.Core.Domain.Repository;
 using Sukt.Core.Identity;
-using Sukt.Core.Shared.AppOption;
 using Sukt.Core.Shared.Extensions;
 using System;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Sukt.Core.API
 {
     public class IdentityModule : IdentityModuleBase<UserStore, RoleStore, UserEntity, UserRoleEntity, RoleEntity, Guid, Guid>
     {
+
         protected override void AddAuthentication(IServiceCollection services)
         {
-            AppOptionSettings settings = services.GetAppSettings();
+            var settings = services.GetAppSettings();
             var jwt = settings.Jwt;
-
-            var keyByteArray = Encoding.UTF8.GetBytes(jwt.SecretKey);
-            var signingKey = new SymmetricSecurityKey(keyByteArray);
-            var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                IssuerSigningKey = signingKey,
-                ValidIssuer = "SuktCore",//发行人
-                ValidAudience = "SuktCore",//订阅人
-                //ValidateLifetime = false,   ////是否验证Token有效期，使用当前时间与Token的Claims中的NotBefore和Expires对比
-                ClockSkew = TimeSpan.Zero, ////允许的服务器时间偏移量
-                LifetimeValidator = (nbf, exp, token, param) => exp > DateTime.UtcNow
-            };
             services.AddAuthorization();
             services.AddAuthentication(x =>
             {
                 x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                //x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             }).AddJwtBearer(jwt =>
             {
-                //jwt.SecurityTokenValidators.Clear();
-                //jwt.SecurityTokenValidators.Add(new CmsJwtSecurityTokenHandler());
-                jwt.TokenValidationParameters = tokenValidationParameters;
+                jwt.Authority = "http://localhost:9860";
+                jwt.Audience = "Sukt.Core.API.Agile.Admin";
+                jwt.RequireHttpsMetadata = false;
+                //jwt.TokenValidationParameters = new TokenValidationParameters() { ValidateAudience = false };
                 jwt.Events = new JwtBearerEvents /*jwt自带事件*/
                 {
                     OnAuthenticationFailed = context =>
@@ -56,9 +42,7 @@ namespace Sukt.Core.API
                     }
                 };
             });
-            //services.AddScoped<IJwtBearerService, JwtBearerService>();
         }
-
         protected override Action<IdentityOptions> IdentityOption()
         {
             return options =>
@@ -76,7 +60,6 @@ namespace Sukt.Core.API
                 options.Password.RequiredUniqueChars = 1;
             };
         }
-
         protected override IdentityBuilder UseIdentityBuilder(IdentityBuilder identityBuilder)
         {
             return identityBuilder.AddDefaultTokenProviders();

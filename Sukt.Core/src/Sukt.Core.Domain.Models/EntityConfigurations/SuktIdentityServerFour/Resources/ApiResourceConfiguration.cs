@@ -6,11 +6,13 @@ using System;
 
 namespace Sukt.Core.Domain.Models.SuktIdentityServerFour
 {
-    public class ApiResourceConfiguration : EntityMappingConfiguration<ApiResource, Guid>
+    public class ApiResourceConfiguration : AggregateRootMappingConfiguration<ApiResource, Guid>
     {
         public override void Map(EntityTypeBuilder<ApiResource> b)
         {
             b.HasKey(o => o.Id);
+            b.Property(o => o.Enabled).HasDefaultValue(true);
+            b.Property(o => o.ShowInDiscoveryDocument).HasDefaultValue(true);
             b.ToTable("ApiResource");
         }
     }

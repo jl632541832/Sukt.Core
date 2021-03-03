@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Sukt.Core.Aop;
@@ -14,6 +15,7 @@ using Sukt.Core.Shared.SuktDependencyAppModule;
 using Sukt.Core.Swagger;
 using System;
 using System.Linq;
+using System.Security.Principal;
 
 namespace Sukt.Core.API.Startups
 {
@@ -21,9 +23,7 @@ namespace Sukt.Core.API.Startups
         typeof(AopModule),
         typeof(SuktAutoMapperModuleBase),
         //typeof(CSRedisModuleBase),
-        typeof(IdentityModule),//如果是用户及角色等通用功能使用IdentityModule   作为微服务架构则使用IdentityServerAuthModule
-                               //typeof(ConsulModuleBase),
-                               //typeof(IdentityModule), 
+        typeof(IdentityModule),
         typeof(SwaggerModule),
         typeof(DependencyAppModule),
         typeof(EventBusAppModuleBase),
@@ -35,7 +35,6 @@ namespace Sukt.Core.API.Startups
     public class SuktAppWebModule : SuktAppModule
     {
         private string _corePolicyName = string.Empty;
-
         public override void ConfigureServices(ConfigureServicesContext context)
         {
             var service = context.Services;
@@ -46,7 +45,6 @@ namespace Sukt.Core.API.Startups
                 x.Filters.Add<AuditLogFilter>();
             }).AddNewtonsoftJson(options =>
             {
-                //options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.DefaultContractResolver();
                 options.SerializerSettings.DateFormatString = "yyyy-MM-dd HH:mm:ss";
             });
             var configuration = service.GetConfiguration();
@@ -54,6 +52,11 @@ namespace Sukt.Core.API.Startups
             context.Services.AddSingleton<IFileProvider>(new PhysicalFileProvider(basePath));
             service.Configure<AppOptionSettings>(configuration.GetSection("SuktCore"));
             var settings = service.GetAppSettings();
+            service.AddTransient<IPrincipal>(provider =>
+            {
+                IHttpContextAccessor accessor = provider.GetService<IHttpContextAccessor>();
+                return accessor?.HttpContext?.User;
+            });
             if (!settings.Cors.PolicyName.IsNullOrEmpty() && !settings.Cors.Url.IsNullOrEmpty()) //添加跨域
             {
                 _corePolicyName = settings.Cors.PolicyName;
@@ -69,15 +72,14 @@ namespace Sukt.Core.API.Startups
                 });
             }
         }
-
         public override void ApplicationInitialization(ApplicationContext context)
         {
             var applicationBuilder = context.GetApplicationBuilder();
-            applicationBuilder.UseRouting();
             if (!_corePolicyName.IsNullOrEmpty())
             {
                 applicationBuilder.UseCors(_corePolicyName); //添加跨域中间件
             }
+            applicationBuilder.UseRouting();
             applicationBuilder.UseAuthentication();//授权
             applicationBuilder.UseAuthorization();//认证
             applicationBuilder.UseEndpoints(endpoints =>

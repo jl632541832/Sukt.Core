@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sukt.Core.Domain.Models.IdentityServerFour;
-using Sukt.Core.Shared.Entity;
+using Sukt.Core.Shared;
 using Sukt.Core.Shared.Extensions;
 using System;
 using System.Collections.Generic;
@@ -13,12 +13,12 @@ namespace Sukt.Core.IdentityServer4Store.Store
 {
     public class ApiResourceStoreBase : IResourceStore
     {
-        private readonly IEFCoreRepository<ApiResource, Guid> _apiResourceRepository;
-        private readonly IEFCoreRepository<IdentityResource, Guid> _identityResourceRepository;
-        private readonly IEFCoreRepository<ApiScope, Guid> _apiScopeRepository;
+        private readonly IAggregateRootRepository<ApiResource, Guid> _apiResourceRepository;
+        private readonly IAggregateRootRepository<IdentityResource, Guid> _identityResourceRepository;
+        private readonly IAggregateRootRepository<ApiScope, Guid> _apiScopeRepository;
         private readonly ILogger<ApiResourceStoreBase> _logger;
 
-        public ApiResourceStoreBase(IEFCoreRepository<ApiResource, Guid> apiResourceRepository, IEFCoreRepository<IdentityResource, Guid> identityResourceRepository, IEFCoreRepository<ApiScope, Guid> apiScopeRepository, ILogger<ApiResourceStoreBase> logger)
+        public ApiResourceStoreBase(IAggregateRootRepository<ApiResource, Guid> apiResourceRepository, IAggregateRootRepository<IdentityResource, Guid> identityResourceRepository, IAggregateRootRepository<ApiScope, Guid> apiScopeRepository, ILogger<ApiResourceStoreBase> logger)
         {
             _apiResourceRepository = apiResourceRepository;
             _identityResourceRepository = identityResourceRepository;
@@ -45,18 +45,18 @@ namespace Sukt.Core.IdentityServer4Store.Store
                 .Include(x => x.Scopes)
                 .Include(x => x.UserClaims)
                 .Include(x => x.Properties).ToListAsync();
-            var results = apis.Where(api => api.Scopes.Any(x => scopeNames.Contains(x.Scope)));
-            return results.Select(x => x.MapTo<IdentityServer4.Models.ApiResource>());
+            //var results = apis.Where(api => api.Scopes.Any(x => scopeNames.Contains(x.Scope)));
+            return apis.Select(x => x.MapTo<IdentityServer4.Models.ApiResource>());
         }
 
         public async Task<IEnumerable<IdentityServer4.Models.ApiScope>> FindApiScopesByNameAsync(IEnumerable<string> scopeNames)
         {
-            return (await _apiScopeRepository.NoTrackEntities.Where(x => scopeNames.Contains(x.Name)).Include(x => x.UserClaims).Include(x => x.Properties).ToListAsync()).Where(x => scopeNames.Contains(x.Name)).Select(x => x.MapTo<IdentityServer4.Models.ApiScope>());
+            return (await _apiScopeRepository.NoTrackEntities.Where(x => scopeNames.Contains(x.Name)).Include(x => x.UserClaims).Include(x => x.Properties).ToListAsync()).Select(x => x.MapTo<IdentityServer4.Models.ApiScope>());
         }
 
         public async Task<IEnumerable<IdentityServer4.Models.IdentityResource>> FindIdentityResourcesByScopeNameAsync(IEnumerable<string> scopeNames)
         {
-            return (await _identityResourceRepository.NoTrackEntities.Where(x => scopeNames.Contains(x.Name)).Include(x => x.UserClaims).Include(x => x.Properties).ToListAsync()).Where(x => scopeNames.Contains(x.Name)).Select(x => x.MapTo<IdentityServer4.Models.IdentityResource>());
+            return (await _identityResourceRepository.NoTrackEntities.Where(x => scopeNames.Contains(x.Name)).Include(x => x.UserClaims).Include(x => x.Properties).ToListAsync()).Select(x => x.MapTo<IdentityServer4.Models.IdentityResource>());
         }
 
         public async Task<IdentityServer4.Models.Resources> GetAllResourcesAsync()

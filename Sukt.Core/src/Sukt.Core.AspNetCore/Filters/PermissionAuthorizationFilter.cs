@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Sukt.Core.Shared.OperationResult;
@@ -28,19 +29,18 @@ namespace Sukt.Core.AspNetCore.Filters
         public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
             await Task.CompletedTask;
-
             var action = context.ActionDescriptor as ControllerActionDescriptor;
             var isAllowAnonymous = action.ControllerTypeInfo.GetCustomAttribute<AllowAnonymousAttribute>();//获取Action中的特性
             var linkurl = context.HttpContext.Request.Path.Value.Replace("/api/", "");
             var result = new AjaxResult(ResultMessage.Unauthorized, Shared.Enums.AjaxResultType.Unauthorized);
             if (!action.EndpointMetadata.Any(x => x is AllowAnonymousAttribute))
             {
-                //if (!(bool)_httpContextAccessor.HttpContext?.User.Identity.IsAuthenticated)
-                //{
-                //    context.HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                //    context.Result = new JsonResult(result);
-                //    return;
-                //}
+                if (!(bool)_httpContextAccessor.HttpContext?.User.Identity.IsAuthenticated)
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    context.Result = new JsonResult(result);
+                    return;
+                }
                 //if (!await _authority.IsPermission(linkurl.ToLower()))
                 //{
                 //    ////????不包含的时候怎么返回出去？这个请求终止掉
